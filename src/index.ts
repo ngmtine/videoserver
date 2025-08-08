@@ -10,11 +10,31 @@ type ServerType = ReturnType<typeof serve>;
 
 const app = new Hono();
 
-// videosディレクトリの静的ファイルを /videos パスで提供する
+// 動画ファイルを配信するためのエンドポイント
 app.use(
     "/videos/*",
     cors({ origin: "*" }), // 全てのオリジンを許可
-    serveStatic({ root: "./" })
+    serveStatic({ root: "./" }) // 静的ファイルを配信するためのミドルウェア
+);
+
+// 動画ファイルをダウンロードさせるためのエンドポイント
+app.use(
+    "/download/*",
+    cors({ origin: "*" }), // 全てのオリジンを許可
+    async (c, next) => {
+        // リクエストされたURLからファイル名を取得
+        const url = new URL(c.req.url);
+        const fileName = path.basename(url.pathname);
+
+        // Content-Dispositionヘッダーを設定（ブラウザにダウンロードさせるための指示）
+        c.header("Content-Disposition", `attachment; filename="${fileName}"`);
+
+        await next();
+    },
+    serveStatic({
+        root: "./",
+        rewriteRequestPath: (path) => path.replace(/^\/download/, "/videos"),
+    })
 );
 
 // 配信可能な動画ファイルをリスト表示する
@@ -28,7 +48,7 @@ app.get("/", async (c) => {
             return c.html('<h1>No videos found</h1><p>Please add .mp4 files to the "videos" directory.</p>');
         }
 
-        const list = videoFiles.map((file) => `<li><a href="/videos/${file}">${file}</a></li>`).join("");
+        const list = videoFiles.map((file) => `<li><a href="/videos/${file}">${file}</a> <a href="/download/videos/${file}">(Download)</a></li>`).join("");
         return c.html(`<h1>Available Videos</h1><ul>${list}</ul>`);
     } catch (error) {
         console.error("Error reading video directory:", error);

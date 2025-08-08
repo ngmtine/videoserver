@@ -1,4 +1,5 @@
 import { serve } from "@hono/node-server";
+import { cors } from "hono/cors";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { readdir } from "fs/promises";
 import { Hono } from "hono";
@@ -10,7 +11,11 @@ type ServerType = ReturnType<typeof serve>;
 const app = new Hono();
 
 // videosディレクトリの静的ファイルを /videos パスで提供する
-app.use("/videos/*", serveStatic({ root: "./" }));
+app.use(
+    "/videos/*",
+    cors({ origin: "*" }), // 全てのオリジンを許可
+    serveStatic({ root: "./" })
+);
 
 // 配信可能な動画ファイルをリスト表示する
 app.get("/", async (c) => {
